@@ -271,18 +271,14 @@ async function startAnalysis(){
     major_vessels:parseInt(document.getElementById('f-mv').value)
   };
 
-  const meds = document.getElementById('f-meds').value;
+ const meds = document.getElementById('f-meds').value;
+  currentRisk = {};
+  agentReport = '';
+  conversationHistory = [];
   document.getElementById('chat-messages').innerHTML = '<div class="msg-bot">Hi! I have completed your cardiovascular risk analysis. Ask me anything about your results in plain language.</div>';
-document.getElementById('report-body').innerHTML = '';
-currentRisk = {};
-currentData = {};
-  document.getElementById('chat-messages').innerHTML = '<div class="msg-bot">Hi! I have completed your cardiovascular risk analysis. Ask me anything about your results in plain language.</div>';
-document.getElementById('report-body').innerHTML = '';
-currentRisk = {};
-agentReport = '';
+  document.getElementById('report-body').innerHTML = '<div class="generating-indicator"><div class="gen-dot"></div><div class="gen-dot"></div><div class="gen-dot"></div><span>AI agents are generating your report...</span></div>';
   showPage('page-loading');
   animateSteps();
-
   let mlResult;
   try {
     const res = await fetch(FLASK_API+'/predict', {
@@ -414,7 +410,7 @@ function downloadReport(){
   a.click();
 }
 
-function goBack(){    showPage('page-form');   document.getElementById('chat-messages').innerHTML = '<div class="msg-bot">Hi! I have completed your cardiovascular risk analysis. Ask me anything about your results in plain language.</div>';   document.getElementById('report-body').innerHTML = '';   currentRisk = {};   currentData = {}; }
+function goBack(){   showPage('page-form');   currentRisk = {};   currentData = {};   agentReport = '';   conversationHistory = [];   document.getElementById('chat-messages').innerHTML = '<div class="msg-bot">Hi! Ask me anything about your results in plain language.</div>';   document.getElementById('report-body').innerHTML = ''; }
 
 function toggleTech(){
   const c = document.getElementById('tech-content');
