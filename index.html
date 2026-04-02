@@ -378,7 +378,7 @@ async function sendChat(){
   btn.disabled = true;
   msgs.scrollTop = msgs.scrollHeight;
 
-  const contextualQuestion = `
+  const const contextualQuestion = `FOLLOW_UP_QUESTION: ${msg}  This is a follow-up question from a patient. Answer in 2-3 conversational sentences only. Do NOT generate a medical report. Just answer the question helpfully.`; = `
 Context — Previous report generated for this patient:
 Risk Level: ${currentRisk.risk_level}, Score: ${currentRisk.risk_score}/10
 ML Probability: ${currentRisk.avg_probability}
