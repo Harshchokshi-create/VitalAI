@@ -410,7 +410,7 @@ async function startAnalysis(){
 
     // Call Flowise for Patient View (simple 4-5 sentences)
     // The prompt will see this as patient data + instruction for simple explanation
-    const patientViewPrompt = `PATIENT VIEW REQUEST: Age: ${patientDataForAI.age}, BP: ${patientDataForAI.resting_bp}, Cholesterol: ${patientDataForAI.serum_chol}, Heart Rate: ${patientDataForAI.max_heart_rate}, Risk Level: ${patientDataForAI.risk_level}, Risk Score: ${patientDataForAI.risk_score}/10. Generate a simple explanation in 4-5 sentences for a patient with no medical jargon.`;
+    const patientViewPrompt = `PATIENT VIEW ONLY.  You MUST follow this STRICT rule: - Output ONLY 4-5 sentences - NO headings - NO bullet points - NO sections - NO formatting - Use VERY simple language (like explaining to a normal person)  Patient Data: Age: ${patientDataForAI.age} BP: ${patientDataForAI.resting_bp} Cholesterol: ${patientDataForAI.serum_chol} Heart Rate: ${patientDataForAI.max_heart_rate} Risk Level: ${patientDataForAI.risk_level} Risk Score: ${patientDataForAI.risk_score}/10  Now give the answer.`;
     const patientReport = await callFlowise(patientViewPrompt, true, patientDataForAI);
 
     // Call Flowise again for Clinical View (detailed full report)
