@@ -266,24 +266,64 @@ footer{text-align:center;padding:24px;font-size:12px;color:var(--muted);border-t
 const FLASK_API = "https://vitalai-zc9m.onrender.com";
 const FLOWISE_API = "https://cloud.flowiseai.com/api/v1/prediction/2baa674e-2c8a-48ec-85ca-cedefc55440a";
 
+// Memory management for conversation history
+let conversationHistory = "";
+let sessionId = "";
 let sessionMemory = '';
 let history = JSON.parse(localStorage.getItem("riskHistory") || "[]");
+
+function generateSessionId() {
+  return Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+}
 
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-async function callFlowise(question){
+async function callFlowise(question, isFirstCall = false, patientData = null){
   try{
+    // Generate new session ID for first call
+    if(isFirstCall) {
+      sessionId = generateSessionId();
+      conversationHistory = "";
+    }
+    
+    let overrideConfig = {
+      sessionId: sessionId,
+      chat_history: conversationHistory || "None"
+    };
+    
+    // Only add patient data on first call
+    if(isFirstCall && patientData){
+      overrideConfig.age = patientData.age.toString();
+      overrideConfig.bp = patientData.resting_bp.toString();
+      overrideConfig.cholesterol = patientData.serum_chol.toString();
+      overrideConfig.heart_rate = patientData.max_heart_rate.toString();
+      overrideConfig.risk_level = patientData.risk_level;
+      overrideConfig.risk_score = patientData.risk_score.toString();
+      overrideConfig.probability = patientData.probability || "75.0";
+    }
+    
     const res = await fetch(FLOWISE_API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({question})
+      body:JSON.stringify({
+        question: question,
+        overrideConfig: overrideConfig
+      })
     });
+    
     const data = await res.json();
-    return data.text || data.output || "No response";
+    const responseText = data.text || data.output || "No response";
+    
+    // Save to conversation history for follow-ups
+    conversationHistory += `Human: ${question}\nAssistant: ${responseText}\n`;
+    
+    return responseText;
+    
   }catch(e){
+    console.error("Flowise error:", e);
     return "AI agent unavailable.";
   }
 }
@@ -369,9 +409,21 @@ async function startAnalysis(){
 
     showPage('page-results');
 
-    // 🤖 Flowise report (async, won't block UI)
+    // 🤖 Flowise report with FULL patient data and memory
+    const patientDataForAI = {
+      age: age,
+      resting_bp: bp,
+      serum_chol: chol,
+      max_heart_rate: hr,
+      risk_level: result.level,
+      risk_score: result.score,
+      probability: "75.0"
+    };
+
     const report = await callFlowise(
-      `Patient age ${age}, BP ${bp}, cholesterol ${chol}. Risk is ${result.level}. Give short medical advice.`
+      "Generate cardiovascular risk assessment report", 
+      true,  // isFirstCall = true - generates new session
+      patientDataForAI
     );
 
     sessionMemory = report;
@@ -389,18 +441,75 @@ async function sendChat(){
   if(!msg) return;
 
   const box = document.getElementById('chat-messages');
+  const btn = document.getElementById('chat-send-btn');
+  
+  // Show user message immediately
   box.innerHTML += `<div class="msg-user">${msg}</div>`;
+  inp.value = '';
+  btn.disabled = true;
+  
+  // Add typing indicator
+  const typingId = 'typing-' + Date.now();
+  box.innerHTML += `<div class="msg-typing" id="${typingId}"><div class="gen-dot"></div><div class="gen-dot"></div><div class="gen-dot"></div></div>`;
+  box.scrollTop = box.scrollHeight;
 
-  const reply = await callFlowise(
-    `User question: ${msg}\nContext: ${sessionMemory}`
-  );
+  // Call Flowise - isFirstCall = false (follow-up), no patient data needed
+  const reply = await callFlowise(msg, false);
 
+  // Remove typing indicator and show reply
+  const typingEl = document.getElementById(typingId);
+  if(typingEl) typingEl.remove();
+  
   box.innerHTML += `<div class="msg-bot">${reply}</div>`;
-  inp.value='';
+  box.scrollTop = box.scrollHeight;
+  
+  btn.disabled = false;
 }
 
 function goBack(){
+  // Reset conversation for new patient - clears all chat history
+  conversationHistory = "";
+  sessionId = "";
+  sessionMemory = "";
+  
+  // Clear chat messages and reset to initial state
+  const chatBox = document.getElementById('chat-messages');
+  chatBox.innerHTML = '<div class="msg-bot">Hi! I have completed your cardiovascular risk analysis. Ask me anything about your results in plain language.</div>';
+  
+  // Clear input field
+  document.getElementById('chat-inp').value = '';
+  
   showPage('page-form');
+}
+
+function switchView(view) {
+  document.getElementById('patient-view').style.display = view === 'patient' ? 'block' : 'none';
+  document.getElementById('clinical-view').style.display = view === 'clinical' ? 'block' : 'none';
+  document.getElementById('btn-patient').classList.toggle('active', view === 'patient');
+  document.getElementById('btn-clinical').classList.toggle('active', view === 'clinical');
+}
+
+function downloadReport() {
+  const reportText = document.getElementById('report-body').textContent;
+  const blob = new Blob([reportText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'VitalAI_Cardiovascular_Report.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toggleTech() {
+  const content = document.getElementById('tech-content');
+  const arrow = document.getElementById('tech-arrow');
+  if (content.style.display === 'block') {
+    content.style.display = 'none';
+    arrow.textContent = '▼ Show';
+  } else {
+    content.style.display = 'block';
+    arrow.textContent = '▲ Hide';
+  }
 }
 </script>
 </body>
